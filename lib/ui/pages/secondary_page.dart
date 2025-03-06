@@ -1,69 +1,166 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:app/core/app_state.dart';
-import 'package:app/ui/widgets/bottom_navigation_bar.dart';
 import 'package:app/ui/pages/medical_staff_page.dart';
+import 'package:app/ui/pages/user_anag_page.dart';
 
 class InsulinometerHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = Provider.of<AppState>(context);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Insulinometer', style: TextStyle()),
-        centerTitle: true,
-        backgroundColor: Colors.blue,
+    return CupertinoTabScaffold(
+      tabBar: CupertinoTabBar(
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.home),
+            label: 'Home',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(CupertinoIcons.settings),
+            label: 'Dispositivo',
+          ),
+        ],
       ),
-      body: Padding(
+      tabBuilder: (context, index) {
+        switch (index) {
+          case 0:
+          // La view Home in stile Material, integrata in CupertinoTabView
+            return CupertinoTabView(
+              builder: (context) => Scaffold(
+                appBar: AppBar(
+                  title: Text('Insulinometer'),
+                  centerTitle: true,
+                  backgroundColor: Colors.blue,
+                ),
+                body: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildDeviceStatusCard(appState.isDeviceConnected),
+                      SizedBox(height: 12),
+                      _buildPatientInfoCard(appState),
+                      SizedBox(height: 32),
+                      _buildActionButton(
+                        'Staff Medico',
+                        Colors.blue,
+                        Colors.white,
+                            () => _showPinDialog(context),
+                      ),
+                      SizedBox(height: 16),
+                      _buildActionButton(
+                        'Generalità',
+                        Colors.green,
+                        Colors.white,
+                            () {
+                          showDialog(
+                            context: context,
+                            barrierColor: Colors.transparent,
+                            builder: (context) => AddUserDetailsPage(),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          case 1:
+          // La view Dispositivo (puoi personalizzarla)
+            return CupertinoTabView(
+              builder: (context) => Scaffold(
+                appBar: AppBar(
+                  title: Text('Dispositivo'),
+                  centerTitle: true,
+                  backgroundColor: Colors.blue,
+                ),
+                body: Center(child: Text('Contenuto Dispositivo')),
+              ),
+            );
+          default:
+            return Container();
+        }
+      },
+    );
+  }
+
+  Widget _buildPatientInfoCard(AppState appState) {
+    bool isRegistered = appState.nome.isNotEmpty && appState.cognome.isNotEmpty;
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0)),
+      elevation: 2,
+      child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Row(
           children: [
-            _buildDeviceStatusCard(appState.isDeviceConnected),
-            SizedBox(height: 32),
-            _buildActionButton('Staff Medico', Colors.blue, Colors.white, () => _showPinDialog(context)),
-            SizedBox(height: 16),
-            _buildActionButton('Settings', Colors.grey[800]!, Colors.white, () {}),
+            Icon(
+              isRegistered ? Icons.person : Icons.error_outline,
+              color: isRegistered ? Colors.blue : Colors.orangeAccent,
+              size: 30,
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                isRegistered
+                    ? "Paziente: ${appState.nome} ${appState.cognome}"
+                    : "⚠️ Registrare i dati anagrafici",
+                style: TextStyle(
+                  fontSize: 18,
+                  color: isRegistered ? Colors.grey[700] : Colors.orangeAccent,
+                ),
+              ),
+            ),
           ],
         ),
       ),
-        bottomNavigationBar: CustomBottomNav(currentIndex: 0));
+    );
   }
 
   void _showPinDialog(BuildContext context) {
     TextEditingController pinController = TextEditingController();
-    showDialog(
+    showCupertinoDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
+        return CupertinoAlertDialog(
           title: Text('Enter PIN'),
-          content: TextField(
+          content: CupertinoTextField(
             controller: pinController,
             obscureText: true,
             keyboardType: TextInputType.number,
-            decoration: InputDecoration(hintText: 'Enter 4-digit PIN'),
+            placeholder: 'Enter 4-digit PIN',
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
+            CupertinoDialogAction(
               child: Text('Cancel'),
+              onPressed: () => Navigator.pop(context),
             ),
-            TextButton(
+            CupertinoDialogAction(
+              child: Text('OK'),
               onPressed: () {
                 if (pinController.text == Provider.of<AppState>(context, listen: false).pin) {
                   Navigator.pop(context);
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => MedicalStaffPage()),
+                    CupertinoPageRoute(builder: (context) => MedicalStaffPage()),
                   );
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Incorrect PIN')),
+                  // Notifica l'errore con un dialog, poiché in Cupertino non esiste ScaffoldMessenger nativamente
+                  showCupertinoDialog(
+                    context: context,
+                    builder: (context) => CupertinoAlertDialog(
+                      title: Text('Error'),
+                      content: Text('Incorrect PIN'),
+                      actions: [
+                        CupertinoDialogAction(
+                          child: Text('OK'),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
                   );
                 }
               },
-              child: Text('OK'),
             ),
           ],
         );

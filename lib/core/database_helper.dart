@@ -30,22 +30,23 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 2, // Aggiornato per supportare il campo data
+      version: 3, // Aggiornata la versione
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE somministrazioni(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             date TEXT,
             time TEXT,
-            meal TEXT,
             dosage TEXT,
+            insulinType TEXT,  -- nuovo campo per il tipo di insulina
             isTaken INTEGER
           )
         ''');
       },
       onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          await db.execute("ALTER TABLE somministrazioni ADD COLUMN date TEXT");
+        if (oldVersion < 3) {
+          // Aggiunge il campo insulinType se non esiste già
+          await db.execute("ALTER TABLE somministrazioni ADD COLUMN insulinType TEXT");
         }
       },
     );
@@ -56,13 +57,13 @@ class DatabaseHelper {
     return await db.query('somministrazioni');
   }
 
-  Future<void> insertSomministrazione(String date, String time, String meal, String dosage) async {
+  Future<void> insertSomministrazione(String date, String time, String meal, String dosage, String insulinType) async {
     final db = await database;
     await db.insert('somministrazioni', {
       'date': date,
       'time': time,
-      'meal': meal,
       'dosage': dosage,
+      'insulinType': insulinType,  // salva anche il tipo di insulina
       'isTaken': 0,
     });
   }
@@ -85,6 +86,21 @@ class DatabaseHelper {
       whereArgs: [id],
     );
   }
+  Future<void> updateSomministrazione(int id, String date, String time, String dosage, String insulinType) async {
+    final db = await database;
+    await db.update(
+      'somministrazioni',
+      {
+        'date': date,
+        'time': time,
+        'dosage': dosage,
+        'insulinType': insulinType,
+      },
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
 
   Future<Map<String, dynamic>?> getNextSomministrazione() async {
     final db = await database;
@@ -102,5 +118,3 @@ class DatabaseHelper {
     return result.isNotEmpty ? result.first : null;
   }
 }
-
-

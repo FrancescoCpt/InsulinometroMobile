@@ -35,17 +35,8 @@ class BLEScanScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 10),
-              const Text("Seleziona un tipo di connessione", style: TextStyle(fontWeight: FontWeight.bold)),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  connectionButton("Bluetooth"),
-                  const SizedBox(width: 20),
-                  connectionButton("USB"),
-                ],
-              ),
               const SizedBox(height: 16),
-              const Text("Seleziona dispositivo", style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text("Seleziona dispositivo per la connessione", style: TextStyle(fontWeight: FontWeight.bold)),
 
               Expanded( // Rende la lista scrollabile
                 child: Consumer<BLEController>(

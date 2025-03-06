@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:app/core/database_helper.dart';
 import 'package:intl/intl.dart';
 import 'package:app/core/notification_service.dart';
+import 'package:app/core/permission_handler_service.dart';
 
 class AddSomministrazionePage extends StatefulWidget {
   @override
@@ -16,11 +17,12 @@ class _AddSomministrazionePageState extends State<AddSomministrazionePage> {
   DateTime selectedDate = DateTime.now();
 
   void _saveSomministrazione() async {
+    await PermissionHandlerService.requestAllPermissions(context); // Assicura che i permessi siano concessi
+
     if (dosageController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Inserisci una dose valida!")),
       );
-
       return;
     }
 
@@ -32,34 +34,50 @@ class _AddSomministrazionePageState extends State<AddSomministrazionePage> {
       formattedTime,
       selectedMeal,
       dosageController.text,
+      "",
     );
 
-    final now = DateTime.now();
+    final now = DateTime.now().toLocal();
     final scheduledTime = DateTime(
       selectedDate.year,
       selectedDate.month,
       selectedDate.day,
       selectedTime.hour,
       selectedTime.minute,
-    );
+    ).toLocal();
 
-    if (scheduledTime.isBefore(now)) {
+    /*if (scheduledTime.isBefore(now)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("L'orario selezionato è già passato. La notifica verrà mostrata subito.")),
       );
     }
+    */
 
-    final notificationId = DateTime.now().millisecondsSinceEpoch;
-    NotificationService.showScheduledNotification(
-      id: notificationId,
-      title: "Promemoria Insulina",
-      body: "È ora di assumere l'insulina!",
-      seconds: scheduledTime.difference(now).inSeconds,
-    );
+    final reminderTime = scheduledTime.subtract(Duration(minutes: 1)); // Notifica 1 minuti prima
+    final notificationId = int.parse(DateFormat('yyyyMMddHHmm').format(scheduledTime))% 1000000000;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Notifica pianificata con successo!")),
-    );
+
+    if (reminderTime.isAfter(now)) {
+      NotificationService.showScheduledNotification(
+        id: notificationId,
+        title: "Promemoria Insulina",
+        body: "È quasi ora della tua prossima somministrazione di insulina!",
+        scheduledTime: reminderTime,
+      );
+      /*ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Notifica pianificata con successo!")),
+      );*/
+    } else {
+      NotificationService.showScheduledNotification(
+        id: notificationId,
+        title: "Promemoria Insulina",
+        body: "Non dimenticare la tua insulina!",
+        scheduledTime: now.add(Duration(seconds: 1)), // Notifica immediata
+      );
+      /*ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("L'orario di notifica è già passato. Nessuna notifica impostata.")),
+      );*/
+    }
 
     Navigator.pop(context, true);
   }

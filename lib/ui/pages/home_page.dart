@@ -1,34 +1,10 @@
-import 'package:app/core/app_state.dart';
 import 'package:flutter/material.dart';
 import 'package:app/core/database_helper.dart';
 import 'package:app/ui/pages/add_somministrazione_page.dart';
-import 'package:app/ui/widgets/bottom_navigation_bar.dart';
 import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
-
-void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Calendario Somministrazioni',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.white,
-        appBarTheme: AppBarTheme(
-          backgroundColor: Colors.blue,
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-      ),
-      home: HomePage(),
-    );
-  }
-}
+import 'package:app/core/notification_service.dart';
+import 'package:app/core/permission_handler_service.dart';
+import 'package:app/core/app_state.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -43,6 +19,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PermissionHandlerService.requestAllPermissions(context);
+    });
     _loadData();
   }
 
@@ -60,10 +39,11 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadNextSomministrazione() async {
     final now = DateTime.now();
+    // Filtra solo le somministrazioni non effettuate
     final data = somministrazioni.where((s) {
-      if (s['isTaken'] == 1) return false; // Escludi le somministrazioni già effettuate
+      if (s['isTaken'] == 1) return false;
       DateTime sTime = DateFormat('yyyy-MM-dd HH:mm').parse("${s['date']} ${s['time']}");
-      return sTime.isAfter(now) || sTime.isBefore(now);
+      return sTime.isAfter(now); // Filtra solo somministrazioni future
     }).toList();
 
     if (data.isNotEmpty) {
@@ -75,10 +55,29 @@ class _HomePageState extends State<HomePage> {
       setState(() {
         nextSomministrazione = data.first;
       });
+      _scheduleNextNotification();
     } else {
       setState(() {
         nextSomministrazione = null;
       });
+    }
+  }
+
+  void _scheduleNextNotification() {
+    if (nextSomministrazione != null) {
+      DateTime sTime = DateFormat('yyyy-MM-dd HH:mm').parse(
+          "${nextSomministrazione!['date']} ${nextSomministrazione!['time']}"
+      );
+      DateTime reminderTime = sTime.subtract(Duration(minutes: 1));
+      int notificationId = int.parse(DateFormat('yyyyMMddHHmm').format(sTime)) % 1000000000;
+      if (reminderTime.isAfter(DateTime.now())) {
+        NotificationService.showScheduledNotification(
+          id: nextSomministrazione!['id'],
+          title: "Promemoria Insulina",
+          body: "È quasi ora della tua prossima somministrazione di insulina!",
+          scheduledTime: reminderTime,
+        );
+      }
     }
   }
 
@@ -103,13 +102,17 @@ class _HomePageState extends State<HomePage> {
       );
     }
     DateTime now = DateTime.now();
-    DateTime scheduledTime = DateFormat('yyyy-MM-dd HH:mm').parse("${nextSomministrazione!['date']} ${nextSomministrazione!['time']}");
+    DateTime scheduledTime = DateFormat('yyyy-MM-dd HH:mm').parse(
+        "${nextSomministrazione!['date']} ${nextSomministrazione!['time']}"
+    );
     Color cardColor = scheduledTime.isBefore(now) ? Colors.red.shade300 : Colors.amber.shade100;
     return Card(
       color: cardColor,
       child: ListTile(
-          leading: Icon(Icons.notifications),
-          title: Text("Prossima somministrazione: \n${nextSomministrazione!['date']} ${nextSomministrazione!['time']} - ${nextSomministrazione!['meal']}")
+        leading: Icon(Icons.notifications),
+        title: Text(
+            "Prossima somministrazione:\n${nextSomministrazione!['date']} ${nextSomministrazione!['time']}"
+        ),
       ),
     );
   }
@@ -129,14 +132,13 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Calendario somministrazioni'),
+        title: Text('Calendario Somministrazioni'),
         centerTitle: true,
         backgroundColor: Colors.blue,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildNotificationCard(),
             SizedBox(height: 16),
@@ -149,7 +151,7 @@ class _HomePageState extends State<HomePage> {
                   final s = somministrazioni[index];
                   return Card(
                     child: ListTile(
-                      title: Text('${s['date']} ${s['time']} - ${s['meal']}'),
+                      title: Text('${s['date']} ${s['time']}'),
                       subtitle: Text('${s['dosage']} UI'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -177,7 +179,10 @@ class _HomePageState extends State<HomePage> {
                 },
               ),
             ),
+
+            // Spazio per i pulsanti in fondo
             SizedBox(height: 16),
+            // Pulsante per aggiungere una somministrazione
             SizedBox(
               width: double.infinity,
               height: 50,
@@ -201,10 +206,11 @@ class _HomePageState extends State<HomePage> {
                 child: Text('Aggiungi Somministrazione', style: TextStyle(color: Colors.white)),
               ),
             ),
+            SizedBox(height: 8),
+
           ],
         ),
       ),
-      bottomNavigationBar: CustomBottomNav(currentIndex: 0),
     );
   }
 }

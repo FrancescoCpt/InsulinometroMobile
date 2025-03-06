@@ -8,24 +8,36 @@ class NotificationService {
 
   // Inizializza il servizio di notifica
   static Future<void> initialize() async {
-    tz.initializeTimeZones(); // Inizializza i fusi orari per le notifiche pianificate
+    tz.initializeTimeZones(); // Inizializza i fusi orari
 
     const AndroidInitializationSettings initializationSettingsAndroid =
-    AndroidInitializationSettings('@mipmap/ic_launcher'); // Icona della notifica
+    AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    final InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
+    final InitializationSettings initializationSettings =
+    InitializationSettings(android: initializationSettingsAndroid);
+
+    await _notificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (details) {
+        print('Notifica ricevuta: ${details.payload}');
+      },
+      onDidReceiveBackgroundNotificationResponse: notificationTapBackground,
     );
-
-    await _notificationsPlugin.initialize(initializationSettings);
   }
 
-  // Mostra una notifica programmata
+  // Callback per gestire le notifiche ricevute in background
+  @pragma('vm:entry-point')
+  static void notificationTapBackground(NotificationResponse notificationResponse) {
+    print('Notifica toccata in background: ${notificationResponse.payload}');
+  }
+
+  // Mostra una notifica programmata; se scheduledTime è troppo vicino a now,
+  // usa show() per una notifica immediata
   static Future<void> showScheduledNotification({
     required int id,
     required String title,
     required String body,
-    required int seconds,
+    required DateTime scheduledTime,
   }) async {
     final AndroidNotificationDetails androidPlatformChannelSpecifics =
     AndroidNotificationDetails(
@@ -39,22 +51,26 @@ class NotificationService {
     final NotificationDetails platformChannelSpecifics =
     NotificationDetails(android: androidPlatformChannelSpecifics);
 
-    await _notificationsPlugin.zonedSchedule(
-      id,
-      title,
-      body,
-      _scheduleTime(seconds),
-      platformChannelSpecifics,
-      androidAllowWhileIdle: true, // Consente la notifica anche in modalità Doze
-      uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
-    );
-  }
-
-  // Calcola il tempo per la notifica programmata
-  static tz.TZDateTime _scheduleTime(int seconds) {
-    final now = tz.TZDateTime.now(tz.local);
-    final scheduledTime = now.add(Duration(seconds: seconds));
-    return scheduledTime;
+    final now = DateTime.now();
+    // Se la differenza tra il tempo programmato e ora è inferiore a 2 secondi, usa la notifica immediata
+    if (scheduledTime.difference(now).inSeconds < 2) {
+      await _notificationsPlugin.show(
+        id,
+        title,
+        body,
+        platformChannelSpecifics,
+      );
+    } else {
+      await _notificationsPlugin.zonedSchedule(
+        id,
+        title,
+        body,
+        tz.TZDateTime.from(scheduledTime, tz.local),
+        platformChannelSpecifics,
+        androidAllowWhileIdle: true, // Consente la notifica anche in modalità Doze
+        uiLocalNotificationDateInterpretation:
+        UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    }
   }
 }

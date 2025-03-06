@@ -1,29 +1,40 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // Importa Provider
-import 'package:app/core/app_state.dart'; // Importa AppState
-import 'package:app/ui/pages/home_page.dart';
-import 'package:app/core/notification_service.dart'; // Importa NotificationService
-import 'package:app/core/meal_notification.dart'; // Importa MealNotificationService
+import 'package:provider/provider.dart';
+import 'package:app/core/app_state.dart';
+import 'package:app/ui/widgets/bottom_navigation_bar.dart'; // Importa CustomBottomNav
+import 'package:app/core/notification_service.dart';
+import 'package:app/core/ble_handler.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:app/core/permission_handler_service.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // Assicura l'inizializzazione di Flutter
+  WidgetsFlutterBinding.ensureInitialized();
 
-  // Inizializza il servizio di notifiche generiche
+  // Inizializza il servizio di notifiche
   await NotificationService.initialize();
 
-  // Inizializza il servizio di notifiche legate ai pasti
-  final MealNotificationService mealNotificationService = MealNotificationService();
-  await mealNotificationService.initialize();
+  // Richiedi i permessi BLE all'avvio
+  await requestBLEPermissions();
 
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => AppState()), // Inizializza lo stato globale
-        Provider<MealNotificationService>(create: (_) => mealNotificationService), // Fornisci il servizio di notifiche per i pasti
+        ChangeNotifierProvider(create: (context) => AppState()),
+        ChangeNotifierProvider(create: (context) => BLEController()),
       ],
       child: MyApp(),
     ),
   );
+}
+
+/// Richiede i permessi Bluetooth necessari
+Future<void> requestBLEPermissions() async {
+  await [
+    Permission.bluetooth,
+    Permission.bluetoothScan,
+    Permission.bluetoothConnect,
+    Permission.location,
+  ].request();
 }
 
 class MyApp extends StatelessWidget {
@@ -32,7 +43,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Somministrazione Insulina',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: HomePage(),
+      // Invece di `home: HomePage()`, usa la custom bottom nav come root
+      home: CustomBottomNav(currentIndex: 0),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:app/ui/pages/patch_application_failed.dart';
 import 'package:app/ui/pages/patch_confermation_page.dart';
 import 'package:app/utils/complex_numbers.dart';
+import 'dart:math';
 
 class BatteryConfirmationPage extends StatelessWidget {
   @override
@@ -68,12 +69,14 @@ class BatteryConfirmationPage extends StatelessWidget {
                   if (checkPassed) {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) =>PatchConfermationPage()),
+                      MaterialPageRoute(
+                          builder: (context) => PatchConfermationPage()),
                     );
                   } else {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => PatchApplicationFailed ()),
+                      MaterialPageRoute(
+                          builder: (context) => PatchApplicationFailed()),
                     );
                   }
                 },
@@ -111,7 +114,17 @@ class BatteryConfirmationPage extends StatelessWidget {
     List<Complex> array3 = List.generate(100, (i) => Complex(300 - i.toDouble(), 0));
     List<List<Complex>> spectra = [array1, array2, array3];
     int windowSize = 10;
+    double valMin = 0.0;
+    double valMax = 100.0;
 
+    // Funzione per calcolare la deviazione standard
+    double standardDeviation(List<double> values) {
+      double mean = values.reduce((a, b) => a + b) / values.length;
+      double sumSquaredDiff = values.map((v) => pow(v - mean, 2).toDouble()).reduce((a, b) => a + b);
+      return sqrt(sumSquaredDiff / values.length).toDouble();
+    }
+
+    // Verifica della monotonicità e della deviazione standard
     for (var spectrum in spectra) {
       List<double> windowAverages = [];
       for (int i = 0; i <= spectrum.length - windowSize; i += windowSize) {
@@ -129,11 +142,32 @@ class BatteryConfirmationPage extends StatelessWidget {
       }
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Monotonicità rispettata, procedere con la verifica della deviazione standard.')),
-    );
+    // Verifica sulla deviazione standard per i 100 campioni
+    for (int i = 0; i < 100; i++) {
+      List<double> realValues = spectra.map((s) => s[i].real).toList();
+      List<double> imagValues = spectra.map((s) => s[i].imag).toList();
+
+      double stdDevReal = standardDeviation(realValues);
+      double stdDevImag = standardDeviation(imagValues);
+
+      if (stdDevReal < valMin || stdDevReal > valMax) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Deviazione standard della parte reale fuori range al campione $i.')),
+        );
+        return false;
+      }
+
+      if (stdDevImag < valMin || stdDevImag > valMax) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Deviazione standard della parte immaginaria fuori range al campione $i.')),
+        );
+        return false;
+      }
+    }
+
     return true;
   }
 }
+
 
 

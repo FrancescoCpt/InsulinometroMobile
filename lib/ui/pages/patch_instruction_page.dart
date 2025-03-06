@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:app/ui/pages/blue_connection.dart';
 
 class PatchInstructionsPage extends StatelessWidget {
   @override
@@ -58,14 +59,19 @@ class PatchInstructionsPage extends StatelessWidget {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => BLEScanScreen()),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: Text("Continua", style: TextStyle(fontSize: 18, color: Colors.white)),
               ),
-            ),
+            )
           ],
         ),
       ),

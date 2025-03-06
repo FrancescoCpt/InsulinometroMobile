@@ -9,15 +9,25 @@ class AppState extends ChangeNotifier {
   String _pin = '0000';
   Map<String, dynamic>? _nextSomministrazione;
 
+  // Variabili per le generalità dell'utente
+  String _nome = "";
+  String _cognome = "";
+  String _dataNascita = "";
+
   final DatabaseHelper dbHelper = DatabaseHelper();
 
+  // Getter per accedere ai dati
   String get pin => _pin;
   Map<String, dynamic>? get nextSomministrazione => _nextSomministrazione;
+  String get nome => _nome;
+  String get cognome => _cognome;
+  String get dataNascita => _dataNascita;
 
   AppState() {
     loadPin();
     loadPatchReplacementDate();
     loadNextSomministrazione();
+    loadUserDetails(); // Carica le generalità all'avvio
   }
 
   void toggleConnection() {
@@ -71,5 +81,35 @@ class AppState extends ChangeNotifier {
   String getNextSomministrazioneText() {
     if (_nextSomministrazione == null) return "Nessuna somministrazione programmata";
     return "Prossima somministrazione: ${_nextSomministrazione!['time']} - ${_nextSomministrazione!['meal']} (${_nextSomministrazione!['dosage']} UI)";
+  }
+
+  // Funzioni per gestire le generalità dell'utente
+  Future<void> saveUserDetails(String nome, String cognome, String dataNascita) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString("user_nome", nome);
+    await prefs.setString("user_cognome", cognome);
+    await prefs.setString("user_data_nascita", dataNascita);
+
+    _nome = nome;
+    _cognome = cognome;
+    _dataNascita = dataNascita;
+
+    notifyListeners();
+  }
+
+  Future<void> loadUserDetails() async {
+    final prefs = await SharedPreferences.getInstance();
+    _nome = prefs.getString("user_nome") ?? "";
+    _cognome = prefs.getString("user_cognome") ?? "";
+    _dataNascita = prefs.getString("user_data_nascita") ?? "";
+
+    notifyListeners();
+  }
+
+  String getUserDetailsText() {
+    if (_nome.isEmpty || _cognome.isEmpty || _dataNascita.isEmpty) {
+      return "Dati utente non impostati";
+    }
+    return "Utente: $_nome $_cognome, Nato il $_dataNascita";
   }
 }
